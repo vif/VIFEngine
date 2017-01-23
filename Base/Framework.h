@@ -5,7 +5,7 @@ struct StartupConf
     StartupConf() = delete;
 };
 
-class Framework
+class BaseEXPORT Framework
 {
 public:
     virtual ~Framework() = default;

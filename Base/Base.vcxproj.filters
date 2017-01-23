@@ -3,8 +3,12 @@
   <ItemGroup>
     <ClInclude Include="Globals.h" />
     <ClInclude Include="DllExport.h" />
+    <ClInclude Include="Framework.h" />
+    <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Globals.cpp" />
+    <ClCompile Include="Framework.cpp" />
+    <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
 </Project>

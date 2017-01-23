@@ -4,12 +4,9 @@
     <ClInclude Include="MainFramework.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="DllExport.h" />
-    <ClInclude Include="Framework.h" />
-    <ClInclude Include="WindowFramework.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainFramework.cpp" />
     <ClCompile Include="stdafx.cpp" />
-    <ClCompile Include="WindowFramework.cpp" />
   </ItemGroup>
 </Project>

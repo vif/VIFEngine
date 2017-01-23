@@ -3,7 +3,8 @@
 #include "MainFramework.h"
 #include <chrono>
 
-#include "WindowFramework.h"
+#include <WindowFramework/Window.h>
+#include <WindowFramework/WindowFramework.h>
 
 StartupConf ParseArgs(const std::string& args)
 {
@@ -15,45 +16,58 @@ int MainFramework::Run(const std::string& args)
 {
     StartupConf conf = ParseArgs(args);
 
-    std::vector<std::unique_ptr<Framework>> frameworks;
-    frameworks.emplace_back(std::make_unique<WindowFramework>());
+    //creation
+    auto&& windowFramework = WindowFramework::Create();
 
+    //push into the vector so we can iterate easily
+    std::vector<Framework*> frameworks;
+    frameworks.emplace_back(windowFramework.get());
+
+    //initialization
     for(auto&& framework : frameworks)
     {
         framework->Init();
     }
 
-    const auto start_time = std::chrono::high_resolution_clock::now();
+    //random stuff
+    auto&& window = windowFramework->CreateWindow("Game", nullptr);
+    window->Show();
 
-    auto current_time = start_time;
-
-    bool keepRunning = true;
-
-    while(keepRunning)
+    //main loop
     {
-        auto new_time = std::chrono::high_resolution_clock::now();
-        double delta = std::chrono::duration<double, std::nano>(new_time - current_time).count();
-        current_time = new_time;
+        const auto start_time = std::chrono::high_resolution_clock::now();
 
-        for(auto&& framework : frameworks)
-        {
-            framework->StartUpdate(delta);
-        }
+        auto current_time = start_time;
 
-        for(auto&& framework : frameworks)
-        {
-            framework->FinishUpdate();
-        }
+        bool keepRunning = true;
 
-        for(auto&& framework : frameworks)
+        while(keepRunning)
         {
-            keepRunning &= !framework->ShouldExit();
+            auto new_time = std::chrono::high_resolution_clock::now();
+            double delta = std::chrono::duration<double, std::nano>(new_time - current_time).count();
+            current_time = new_time;
+
+            for(auto&& framework : frameworks)
+            {
+                framework->StartUpdate(delta);
+            }
+
+            for(auto&& framework : frameworks)
+            {
+                framework->FinishUpdate();
+            }
+
+            for(auto&& framework : frameworks)
+            {
+                keepRunning &= !framework->ShouldExit();
+            }
         }
     }
 
-    for(auto&& framework : frameworks)
+    //shutdown
+    for(auto&& it = std::rbegin(frameworks); it != std::rend(frameworks); ++it)
     {
-        framework->Shutdown();
+        (*it)->Shutdown();
     }
 
     return 0;
