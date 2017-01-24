@@ -1,9 +1,9 @@
 #pragma once
 
-#include <Base/Framework.h>
-
 #include "DllExport.h"
 
+#include <Base/Framework.h>
+#include <Base/WindowsInclude.h>
 #include <string>
 
 //responsible for creating & managing Windows
@@ -21,4 +21,5 @@ public:
     virtual void FinishUpdate() override = 0;
 
     virtual std::unique_ptr<Window> CreateWindow(const std::string& name, const Window* parent) = 0;
+    virtual HINSTANCE GetInstance() = 0;
 };

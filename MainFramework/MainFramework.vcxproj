@@ -131,6 +131,9 @@
     <ProjectReference Include="..\Base\Base.vcxproj">
       <Project>{5414b82e-b1e8-4164-923a-c50d04ac4dd5}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\Renderer\Renderer.vcxproj">
+      <Project>{099d1fa8-bb01-4924-ae0b-b5cb6e306d1a}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\WindowFramework\WindowFramework.vcxproj">
       <Project>{11c44211-45b0-45b3-8f70-9eb802fe2df1}</Project>
     </ProjectReference>

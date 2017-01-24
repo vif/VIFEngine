@@ -3,8 +3,8 @@
 #include "MainFramework.h"
 #include <chrono>
 
-#include <WindowFramework/Window.h>
 #include <WindowFramework/WindowFramework.h>
+#include <Renderer/RendererFramework.h>
 
 StartupConf ParseArgs(const std::string& args)
 {
@@ -17,21 +17,19 @@ int MainFramework::Run(const std::string& args)
     StartupConf conf = ParseArgs(args);
 
     //creation
-    auto&& windowFramework = WindowFramework::Create();
+    auto&& window_framework = WindowFramework::Create();
+    auto&& renderer_framework = RendererFramework::Create(*window_framework.get());
 
     //push into the vector so we can iterate easily
     std::vector<Framework*> frameworks;
-    frameworks.emplace_back(windowFramework.get());
+    frameworks.emplace_back(window_framework.get());
+    frameworks.emplace_back(renderer_framework.get());
 
     //initialization
     for(auto&& framework : frameworks)
     {
         framework->Init();
     }
-
-    //random stuff
-    auto&& window = windowFramework->CreateWindow("Game", nullptr);
-    window->Show();
 
     //main loop
     {

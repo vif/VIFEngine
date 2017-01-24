@@ -118,6 +118,7 @@
     <ClInclude Include="Framework.h" />
     <ClInclude Include="Globals.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="WindowsInclude.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Framework.cpp" />

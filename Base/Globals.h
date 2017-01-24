@@ -4,6 +4,7 @@
 
 #define _HAS_EXCEPTIONS 0
 
+#include <array>
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
@@ -20,3 +21,9 @@ BaseEXPORT std::wstring ToUTF16(const std::string& str);
 #else
 #  define DebugAssert(expr)
 #endif
+
+template <typename T, std::size_t N>
+constexpr std::size_t countof(T const (&)[N])
+{
+    return N;
+}

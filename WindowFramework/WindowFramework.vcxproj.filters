@@ -3,11 +3,13 @@
   <ItemGroup>
     <ClCompile Include="WindowFramework.cpp" />
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="WindowImpl.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowFramework.h" />
     <ClInclude Include="DllExport.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Window.h" />
+    <ClInclude Include="WindowImpl.h" />
   </ItemGroup>
 </Project>
