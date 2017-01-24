@@ -35,7 +35,7 @@ void RendererFrameworkImpl::Init()
         VK_KHR_WIN32_SURFACE_EXTENSION_NAME
     };
 
-    vk::InstanceCreateInfo inst_info{ vk::InstanceCreateFlags(), &app_info, 0, nullptr, countof(instance_extensions), instance_extensions};
+    vk::InstanceCreateInfo inst_info{ vk::InstanceCreateFlags(), &app_info, 0, nullptr, static_cast<uint32_t>(countof(instance_extensions)), instance_extensions};
     const auto& create_instance_res = vk::createInstance(inst_info);
     Assert(create_instance_res.result == vk::Result::eSuccess);
     m_vk_inst = create_instance_res.value;
@@ -50,7 +50,7 @@ void RendererFrameworkImpl::Init()
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
-    vk::DeviceCreateInfo device_info(vk::DeviceCreateFlags(), 0, nullptr, 0, 0, countof(device_extensions), device_extensions);
+    vk::DeviceCreateInfo device_info(vk::DeviceCreateFlags(), 0, nullptr, 0, 0, static_cast<uint32_t>(countof(device_extensions)), device_extensions);
     const auto& create_device_res = physical_device.createDevice(device_info);
     Assert(create_device_res.result == vk::Result::eSuccess);
     m_vk_device = create_device_res.value;
