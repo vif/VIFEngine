@@ -1,6 +1,11 @@
 #include "stdafx.h"
 #include "WindowImpl.h"
 
+WindowImpl::WindowImpl(const std::function<void()>& OnClose) :
+    m_OnClose(OnClose)
+{
+}
+
 void WindowImpl::Create
 (
     const wchar_t* class_name,
@@ -22,6 +27,8 @@ void WindowImpl::Create
         nullptr                            // Additional application data
     );
     Assert(m_HWND);
+    static_assert(sizeof(LONG_PTR) == sizeof(this), "pointer size");
+    SetWindowLongPtr(m_HWND, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 }
 
 void WindowImpl::Show()

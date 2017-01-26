@@ -12,8 +12,19 @@ public:
     virtual void Shutdown() override;
     virtual void StartUpdate(const double delta) override {}
     virtual void FinishUpdate() override {}
+    virtual bool ShouldExit() override { return !m_window; }
 
 private:
+    void OnMainWindowClose();
+
+    void SetupVKInstance();
+    void SetupVKPhysicalDevice();
+    void SetupVKDevice();
+    void SetupVKCommandPool();
+    void SetupVKCommandQueue();
+    void SetupVKSurface();
+    void SetupVKSwapchain();
+
     WindowFramework& m_window_framework;
 
     std::unique_ptr<Window> m_window;
@@ -36,12 +47,34 @@ static T Get(vk::ResultValue<T>&& res)
 
 void RendererFrameworkImpl::Init()
 {
-    // Create a windows
-    m_window = m_window_framework.CreateWindow("Game", nullptr);
+    // Create a window
+    m_window = m_window_framework.CreateWindow("Game", nullptr, std::bind(&RendererFrameworkImpl::OnMainWindowClose, this));
     Assert(m_window);
     m_window->Show();
 
     // Vulkan stuff
+    SetupVKInstance();
+    SetupVKPhysicalDevice();
+    SetupVKDevice();
+    SetupVKCommandPool();
+    SetupVKCommandQueue();
+    SetupVKSurface();
+    SetupVKSwapchain();
+}
+
+void RendererFrameworkImpl::Shutdown()
+{
+    m_vk_device.destroy();
+    m_vk_inst.destroy();
+}
+
+void RendererFrameworkImpl::OnMainWindowClose()
+{
+    m_window.release();
+}
+
+void RendererFrameworkImpl::SetupVKInstance()
+{
     vk::ApplicationInfo app_info;
 
     const char* instance_extensions[] =
@@ -52,11 +85,19 @@ void RendererFrameworkImpl::Init()
 
     vk::InstanceCreateInfo inst_info{{}, &app_info, 0, nullptr, static_cast<uint32_t>(countof(instance_extensions)), instance_extensions};
     m_vk_inst = Get(vk::createInstance(inst_info));
+}
 
+void RendererFrameworkImpl::SetupVKPhysicalDevice()
+{
+    Assert(m_vk_inst);
     const auto& physical_devices = Get(m_vk_inst.enumeratePhysicalDevices());
     Assert(!physical_devices.empty());
     m_vk_physical_device = physical_devices[0];
+}
 
+void RendererFrameworkImpl::SetupVKDevice()
+{
+    Assert(m_vk_physical_device);
     const char* device_extensions[] = 
     {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -64,21 +105,41 @@ void RendererFrameworkImpl::Init()
 
     vk::DeviceCreateInfo device_info({}, 0, nullptr, 0, 0, static_cast<uint32_t>(countof(device_extensions)), device_extensions);
     m_vk_device = Get(m_vk_physical_device.createDevice(device_info));
-    
+}
+
+void RendererFrameworkImpl::SetupVKCommandPool()
+{
+    Assert(m_vk_device);
     vk::CommandPoolCreateInfo command_pool_info;
     m_vk_command_pool = Get(m_vk_device.createCommandPool(command_pool_info));
+}
 
+void RendererFrameworkImpl::SetupVKCommandQueue()
+{
+    Assert(m_vk_device);
     vk::CommandBufferAllocateInfo command_buffer_info{m_vk_command_pool, vk::CommandBufferLevel::ePrimary, 1};
     const auto& allocated_command_buffers = Get(m_vk_device.allocateCommandBuffers(command_buffer_info));
     Assert(allocated_command_buffers.size() == 1);
     m_vk_command_buffer = allocated_command_buffers[0];
+}
 
+void RendererFrameworkImpl::SetupVKSurface()
+{
+    Assert(m_window);
+    Assert(m_vk_inst);
     vk::Win32SurfaceCreateInfoKHR surface_create_info{{}, m_window_framework.GetInstance(), m_window->GetHandle()};
     m_vk_surface = Get(m_vk_inst.createWin32SurfaceKHR(surface_create_info));
+}
+
+void RendererFrameworkImpl::SetupVKSwapchain()
+{
+    Assert(m_vk_physical_device);
+    Assert(m_vk_surface);
+    Assert(m_vk_device);
 
     const auto& queue_family_properties = m_vk_physical_device.getQueueFamilyProperties();
     Assert(!queue_family_properties.empty());
-    
+
     uint32_t graphics_queue_family_index = UINT32_MAX;
     uint32_t present_queue_family_index = UINT32_MAX;
 
@@ -118,7 +179,7 @@ void RendererFrameworkImpl::Init()
 
     const auto& surfaceFormats = Get(m_vk_physical_device.getSurfaceFormatsKHR(m_vk_surface));
     Assert(!surfaceFormats.empty());
-    
+
     vk::Format format = vk::Format::eB8G8R8A8Unorm;
     if(surfaceFormats[0].format != vk::Format::eUndefined)
     {
@@ -129,7 +190,7 @@ void RendererFrameworkImpl::Init()
     const auto& surface_present_modes = Get(m_vk_physical_device.getSurfacePresentModesKHR(m_vk_surface));
 
     vk::Extent2D extent = surface_capabilities.currentExtent;
-    if(extent.width == 0xFFFFFFFF) 
+    if(extent.width == 0xFFFFFFFF)
     {
         extent = surface_capabilities.maxImageExtent;
     }
@@ -157,7 +218,7 @@ void RendererFrameworkImpl::Init()
         vk::CompositeAlphaFlagBitsKHR::eOpaque, //composite alphas
         vk::PresentModeKHR::eFifo, //present mode
         0, //clipped
-        nullptr //old swapchain
+        {} //old swapchain
     };
 
     if(graphics_queue_family_index != present_queue_family_index)
@@ -168,12 +229,6 @@ void RendererFrameworkImpl::Init()
         swapchain_info.pQueueFamilyIndices = queueFamilyIndices;
     }
     m_vk_swapchain = Get(m_vk_device.createSwapchainKHR(swapchain_info));
-}
-
-void RendererFrameworkImpl::Shutdown()
-{
-    m_vk_device.destroy();
-    m_vk_inst.destroy();
 }
 
 std::unique_ptr<RendererFramework> RendererFramework::Create(WindowFramework& window_framework)

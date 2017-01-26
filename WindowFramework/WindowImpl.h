@@ -2,12 +2,10 @@
 
 #include "Window.h"
 
-#include <string.h>
-
 class WindowImpl : public Window
 {
 public:
-    WindowImpl() = default;
+    WindowImpl(const std::function<void()>& OnClose);
 
     virtual void Create
     (
@@ -20,6 +18,9 @@ public:
     virtual void Hide() override;
     virtual HWND GetHandle() override;
 
+    void OnClose() { m_OnClose(); }
+
 private:
     HWND m_HWND;
+    std::function<void()> m_OnClose;
 };

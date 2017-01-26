@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
+#include <functional>
 #include <string>
 #include <vector>
 

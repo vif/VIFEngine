@@ -7,6 +7,17 @@ const wchar_t CLASS_NAME[] = L"Window Framework Class";
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    WindowImpl* window = reinterpret_cast<WindowImpl*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+    
+    switch(uMsg)
+    {
+        case WM_CLOSE:
+            window->OnClose();
+            break;
+        default:
+            break;
+    }
+
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
@@ -21,7 +32,7 @@ public:
 
     virtual void FinishUpdate() override;
 
-    virtual std::unique_ptr<Window> CreateWindow(const std::string& name, const Window* parent) override;
+    virtual std::unique_ptr<Window> CreateWindow(const std::string& name, const Window* parent, const std::function<void()>& OnClose) override;
     virtual HINSTANCE GetInstance() { return m_hInstance; }
 
 private:
@@ -48,24 +59,15 @@ void WindowFrameworkImpl::Shutdown()
 void WindowFrameworkImpl::FinishUpdate()
 {
     MSG msg;
-    BOOL bRet;
-    while((bRet = GetMessage(&msg, NULL, 0, 0)) != 0)
+    while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
     {
-        if(bRet == -1)
-        {
-            // handle the error and possibly exit
-        }
-        else
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
+        DispatchMessage(&msg);
     }
 }
 
-std::unique_ptr<Window> WindowFrameworkImpl::CreateWindow(const std::string& name, const Window* parent)
+std::unique_ptr<Window> WindowFrameworkImpl::CreateWindow(const std::string& name, const Window* parent, const std::function<void()>& OnClose)
 {
-    std::unique_ptr<WindowImpl> ret = std::make_unique<WindowImpl>();
+    std::unique_ptr<WindowImpl> ret = std::make_unique<WindowImpl>(OnClose);
     ret->Create(CLASS_NAME, name, m_hInstance, static_cast<const WindowImpl*>(parent));
     return ret;
 }
