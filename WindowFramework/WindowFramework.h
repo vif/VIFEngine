@@ -4,7 +4,6 @@
 
 #include <Base/Framework.h>
 #include <Base/WindowsInclude.h>
-#include <string>
 
 //responsible for creating & managing Windows
 
