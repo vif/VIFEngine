@@ -24,6 +24,7 @@ private:
     void SetupVKCommandQueue();
     void SetupVKSurface();
     void SetupVKSwapchain();
+    void SetupVKImageViews();
 
     WindowFramework& m_window_framework;
 
@@ -35,7 +36,15 @@ private:
     vk::CommandPool m_vk_command_pool;
     vk::CommandBuffer m_vk_command_buffer;
     vk::SurfaceKHR m_vk_surface;
+    vk::Format m_vk_format;
     vk::SwapchainKHR m_vk_swapchain;
+
+    struct ImageBuffer
+    {
+        //same index
+        std::vector<vk::Image> images;
+        std::vector<vk::ImageView> image_views;
+    } m_image_buffer;
 };
 
 template<typename T>
@@ -60,12 +69,11 @@ void RendererFrameworkImpl::Init()
     SetupVKCommandQueue();
     SetupVKSurface();
     SetupVKSwapchain();
+    SetupVKImageViews();
 }
 
 void RendererFrameworkImpl::Shutdown()
 {
-    m_vk_device.destroy();
-    m_vk_inst.destroy();
 }
 
 void RendererFrameworkImpl::OnMainWindowClose()
@@ -83,7 +91,7 @@ void RendererFrameworkImpl::SetupVKInstance()
         VK_KHR_WIN32_SURFACE_EXTENSION_NAME
     };
 
-    vk::InstanceCreateInfo inst_info{{}, &app_info, 0, nullptr, static_cast<uint32_t>(countof(instance_extensions)), instance_extensions};
+    vk::InstanceCreateInfo inst_info({}, &app_info, 0, nullptr, static_cast<uint32_t>(countof(instance_extensions)), instance_extensions);
     m_vk_inst = Get(vk::createInstance(inst_info));
 }
 
@@ -117,7 +125,7 @@ void RendererFrameworkImpl::SetupVKCommandPool()
 void RendererFrameworkImpl::SetupVKCommandQueue()
 {
     Assert(m_vk_device);
-    vk::CommandBufferAllocateInfo command_buffer_info{m_vk_command_pool, vk::CommandBufferLevel::ePrimary, 1};
+    vk::CommandBufferAllocateInfo command_buffer_info(m_vk_command_pool, vk::CommandBufferLevel::ePrimary, 1);
     const auto& allocated_command_buffers = Get(m_vk_device.allocateCommandBuffers(command_buffer_info));
     Assert(allocated_command_buffers.size() == 1);
     m_vk_command_buffer = allocated_command_buffers[0];
@@ -127,7 +135,7 @@ void RendererFrameworkImpl::SetupVKSurface()
 {
     Assert(m_window);
     Assert(m_vk_inst);
-    vk::Win32SurfaceCreateInfoKHR surface_create_info{{}, m_window_framework.GetInstance(), m_window->GetHandle()};
+    vk::Win32SurfaceCreateInfoKHR surface_create_info({}, m_window_framework.GetInstance(), m_window->GetHandle());
     m_vk_surface = Get(m_vk_inst.createWin32SurfaceKHR(surface_create_info));
 }
 
@@ -177,13 +185,13 @@ void RendererFrameworkImpl::SetupVKSwapchain()
     Assert(graphics_queue_family_index != UINT32_MAX);
     Assert(present_queue_family_index != UINT32_MAX);
 
-    const auto& surfaceFormats = Get(m_vk_physical_device.getSurfaceFormatsKHR(m_vk_surface));
-    Assert(!surfaceFormats.empty());
+    const auto& surface_formats = Get(m_vk_physical_device.getSurfaceFormatsKHR(m_vk_surface));
+    Assert(!surface_formats.empty());
 
-    vk::Format format = vk::Format::eB8G8R8A8Unorm;
-    if(surfaceFormats[0].format != vk::Format::eUndefined)
+    m_vk_format = vk::Format::eB8G8R8A8Unorm;
+    if(surface_formats[0].format != vk::Format::eUndefined)
     {
-        format = surfaceFormats[0].format;
+        m_vk_format = surface_formats[0].format;
     }
 
     const auto& surface_capabilities = Get(m_vk_physical_device.getSurfaceCapabilitiesKHR(m_vk_surface));
@@ -195,18 +203,18 @@ void RendererFrameworkImpl::SetupVKSwapchain()
         extent = surface_capabilities.maxImageExtent;
     }
 
-    vk::SurfaceTransformFlagBitsKHR preTransform = surface_capabilities.currentTransform;
+    vk::SurfaceTransformFlagBitsKHR pre_transform = surface_capabilities.currentTransform;
     if(surface_capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity)
     {
-        preTransform = vk::SurfaceTransformFlagBitsKHR::eIdentity;
+        pre_transform = vk::SurfaceTransformFlagBitsKHR::eIdentity;
     }
 
     vk::SwapchainCreateInfoKHR swapchain_info
-    {
+    (
         {}, //flags
         m_vk_surface, //surface
         surface_capabilities.minImageCount, //minImageCount
-        format, //image format
+        m_vk_format, //image format
         vk::ColorSpaceKHR::eSrgbNonlinear, //image color space
         extent, //image extent
         1, //image array layers
@@ -214,12 +222,12 @@ void RendererFrameworkImpl::SetupVKSwapchain()
         vk::SharingMode::eExclusive, //image sharing mode
         0, //queue family index count
         nullptr, //queue family indices
-        preTransform, //pre transform
+        pre_transform, //pre transform
         vk::CompositeAlphaFlagBitsKHR::eOpaque, //composite alphas
         vk::PresentModeKHR::eFifo, //present mode
         0, //clipped
         {} //old swapchain
-    };
+    );
 
     if(graphics_queue_family_index != present_queue_family_index)
     {
@@ -229,6 +237,32 @@ void RendererFrameworkImpl::SetupVKSwapchain()
         swapchain_info.pQueueFamilyIndices = queueFamilyIndices;
     }
     m_vk_swapchain = Get(m_vk_device.createSwapchainKHR(swapchain_info));
+}
+
+void RendererFrameworkImpl::SetupVKImageViews()
+{
+    Assert(m_vk_device);
+    Assert(m_vk_swapchain);
+    
+    m_image_buffer.images = Get(m_vk_device.getSwapchainImagesKHR(m_vk_swapchain));
+
+    const size_t num_swapchain_images = m_image_buffer.images.size();
+    m_image_buffer.image_views.resize(num_swapchain_images);
+
+    for(uint32_t i = 0; i < num_swapchain_images; ++i)
+    {
+        vk::ImageViewCreateInfo image_view_info
+        (
+            {}, 
+            m_image_buffer.images[i], 
+            vk::ImageViewType::e2D, 
+            m_vk_format, 
+            vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA),
+            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
+        );
+
+        m_image_buffer.image_views[i] = Get(m_vk_device.createImageView(image_view_info));
+    }
 }
 
 std::unique_ptr<RendererFramework> RendererFramework::Create(WindowFramework& window_framework)
