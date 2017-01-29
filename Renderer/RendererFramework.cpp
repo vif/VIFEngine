@@ -25,16 +25,18 @@ private:
     void SetupVKSurface();
     void SetupVKSwapchain();
     void SetupVKImageViews();
+    void SetupVKDepthBuffer();
 
     WindowFramework& m_window_framework;
 
     std::unique_ptr<Window> m_window;
 
-    vk::Instance m_vk_inst;
+    vk::Instance m_vk_instance;
     vk::PhysicalDevice m_vk_physical_device;
     vk::Device m_vk_device;
     vk::CommandPool m_vk_command_pool;
     vk::CommandBuffer m_vk_command_buffer;
+    vk::Extent2D m_vk_extent;
     vk::SurfaceKHR m_vk_surface;
     vk::Format m_vk_format;
     vk::SwapchainKHR m_vk_swapchain;
@@ -45,6 +47,13 @@ private:
         std::vector<vk::Image> images;
         std::vector<vk::ImageView> image_views;
     } m_image_buffer;
+
+    struct DepthBuffer
+    {
+        vk::Image image;
+        vk::ImageView image_view;
+        vk::DeviceMemory memory;
+    } m_depth_buffer;
 };
 
 template<typename T>
@@ -70,6 +79,7 @@ void RendererFrameworkImpl::Init()
     SetupVKSurface();
     SetupVKSwapchain();
     SetupVKImageViews();
+    SetupVKDepthBuffer();
 }
 
 void RendererFrameworkImpl::Shutdown()
@@ -92,13 +102,13 @@ void RendererFrameworkImpl::SetupVKInstance()
     };
 
     vk::InstanceCreateInfo inst_info({}, &app_info, 0, nullptr, static_cast<uint32_t>(countof(instance_extensions)), instance_extensions);
-    m_vk_inst = Get(vk::createInstance(inst_info));
+    m_vk_instance = Get(vk::createInstance(inst_info));
 }
 
 void RendererFrameworkImpl::SetupVKPhysicalDevice()
 {
-    Assert(m_vk_inst);
-    const auto& physical_devices = Get(m_vk_inst.enumeratePhysicalDevices());
+    Assert(m_vk_instance);
+    const auto& physical_devices = Get(m_vk_instance.enumeratePhysicalDevices());
     Assert(!physical_devices.empty());
     m_vk_physical_device = physical_devices[0];
 }
@@ -134,9 +144,9 @@ void RendererFrameworkImpl::SetupVKCommandQueue()
 void RendererFrameworkImpl::SetupVKSurface()
 {
     Assert(m_window);
-    Assert(m_vk_inst);
+    Assert(m_vk_instance);
     vk::Win32SurfaceCreateInfoKHR surface_create_info({}, m_window_framework.GetInstance(), m_window->GetHandle());
-    m_vk_surface = Get(m_vk_inst.createWin32SurfaceKHR(surface_create_info));
+    m_vk_surface = Get(m_vk_instance.createWin32SurfaceKHR(surface_create_info));
 }
 
 void RendererFrameworkImpl::SetupVKSwapchain()
@@ -197,10 +207,16 @@ void RendererFrameworkImpl::SetupVKSwapchain()
     const auto& surface_capabilities = Get(m_vk_physical_device.getSurfaceCapabilitiesKHR(m_vk_surface));
     const auto& surface_present_modes = Get(m_vk_physical_device.getSurfacePresentModesKHR(m_vk_surface));
 
-    vk::Extent2D extent = surface_capabilities.currentExtent;
-    if(extent.width == 0xFFFFFFFF)
+    m_vk_extent = surface_capabilities.currentExtent;
+    if(m_vk_extent.width == 0xFFFFFFFF)
     {
-        extent = surface_capabilities.maxImageExtent;
+        const auto& window_size = m_window->GetSize();
+        const vk::Extent2D window_extent = {window_size.first, window_size.second};
+        m_vk_extent = 
+        {
+            clamp(window_extent.width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width),
+            clamp(window_extent.height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height)
+        };
     }
 
     vk::SurfaceTransformFlagBitsKHR pre_transform = surface_capabilities.currentTransform;
@@ -216,7 +232,7 @@ void RendererFrameworkImpl::SetupVKSwapchain()
         surface_capabilities.minImageCount, //minImageCount
         m_vk_format, //image format
         vk::ColorSpaceKHR::eSrgbNonlinear, //image color space
-        extent, //image extent
+        m_vk_extent, //image extent
         1, //image array layers
         vk::ImageUsageFlagBits::eColorAttachment, //image usage flags
         vk::SharingMode::eExclusive, //image sharing mode
@@ -263,6 +279,83 @@ void RendererFrameworkImpl::SetupVKImageViews()
 
         m_image_buffer.image_views[i] = Get(m_vk_device.createImageView(image_view_info));
     }
+}
+
+void RendererFrameworkImpl::SetupVKDepthBuffer()
+{
+    Assert(m_vk_physical_device);
+    Assert(m_vk_device);
+
+    const vk::Format depth_format = vk::Format::eD16Unorm;
+
+    const auto& depth_props = m_vk_physical_device.getFormatProperties(depth_format);
+
+    vk::ImageTiling image_tiling;
+    if(depth_props.optimalTilingFeatures)
+    {
+        image_tiling = vk::ImageTiling::eOptimal;
+    }
+    else if(depth_props.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+    {
+        image_tiling = vk::ImageTiling::eLinear;
+    }
+    else
+    {
+        std::abort(); //TODO add message
+    }
+
+    vk::ImageCreateInfo image_info
+    (
+        {}, 
+        vk::ImageType::e2D,
+        depth_format,
+        {m_vk_extent.width, m_vk_extent.height, 1},
+        1,
+        1,
+        vk::SampleCountFlagBits::e16,
+        image_tiling,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        vk::SharingMode::eExclusive,
+        0,
+        nullptr,
+        vk::ImageLayout::eUndefined
+    );
+    m_depth_buffer.image = Get(m_vk_device.createImage(image_info));
+
+    const auto& mem_reqs = m_vk_device.getImageMemoryRequirements(m_depth_buffer.image);
+
+    const auto& mem_properties = m_vk_physical_device.getMemoryProperties();
+
+    const vk::MemoryPropertyFlagBits mem_flags = vk::MemoryPropertyFlagBits::eDeviceLocal;
+    uint32_t memory_type_index;
+    for(memory_type_index = 0; memory_type_index < mem_properties.memoryTypeCount; ++memory_type_index)
+    {
+        if 
+        (
+            ((mem_properties.memoryTypes[memory_type_index].propertyFlags & mem_flags) == mem_flags) //has type flag
+            && ((mem_reqs.memoryTypeBits >> memory_type_index) & 1) //mem_reqs accepts that index
+        )
+        {
+            break;
+        }
+    }
+
+
+    vk::MemoryAllocateInfo alloc_info(mem_reqs.size, memory_type_index);
+    m_depth_buffer.memory = Get(m_vk_device.allocateMemory(alloc_info));
+    m_vk_device.bindImageMemory(m_depth_buffer.image, m_depth_buffer.memory, 0);
+
+    vk::ImageViewCreateInfo image_view_info
+    (
+        {}, 
+        m_depth_buffer.image, 
+        vk::ImageViewType::e2D, 
+        depth_format, 
+        vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA),
+        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1)
+    );
+
+    m_depth_buffer.image_view = Get(m_vk_device.createImageView(image_view_info));
 }
 
 std::unique_ptr<RendererFramework> RendererFramework::Create(WindowFramework& window_framework)

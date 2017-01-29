@@ -17,6 +17,7 @@ public:
     virtual void Show() override;
     virtual void Hide() override;
     virtual HWND GetHandle() override;
+    virtual std::pair<uint32_t, uint32_t> GetSize() override;
 
     void OnClose() { m_OnClose(); }
 

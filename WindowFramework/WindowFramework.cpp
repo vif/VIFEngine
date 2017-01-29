@@ -25,13 +25,9 @@ class WindowFrameworkImpl : public WindowFramework
 {
 public:
     virtual void Init() override;
-
     virtual void Shutdown() override;
-
     virtual void StartUpdate(const double delta) override {}
-
     virtual void FinishUpdate() override;
-
     virtual std::unique_ptr<Window> CreateWindow(const std::string& name, const Window* parent, const std::function<void()>& OnClose) override;
     virtual HINSTANCE GetInstance() { return m_hInstance; }
 

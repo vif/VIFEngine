@@ -45,3 +45,10 @@ HWND WindowImpl::GetHandle()
 {
     return m_HWND;
 }
+
+std::pair<uint32_t, uint32_t> WindowImpl::GetSize()
+{
+    RECT r{};
+    Assert(GetClientRect(m_HWND, &r));
+    return {r.right - r.left, r.bottom - r.top};
+}
