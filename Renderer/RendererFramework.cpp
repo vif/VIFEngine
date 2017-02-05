@@ -214,8 +214,8 @@ void RendererFrameworkImpl::SetupVKSwapchain()
         const vk::Extent2D window_extent = {window_size.first, window_size.second};
         m_vk_extent = 
         {
-            clamp(window_extent.width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width),
-            clamp(window_extent.height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height)
+            std::clamp(window_extent.width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width),
+            std::clamp(window_extent.height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height)
         };
     }
 

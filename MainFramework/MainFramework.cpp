@@ -3,8 +3,8 @@
 #include "MainFramework.h"
 #include <chrono>
 
-#include <WindowFramework/WindowFramework.h>
 #include <Renderer/RendererFramework.h>
+#include <WindowFramework/WindowFramework.h>
 
 StartupConf ParseArgs(const std::string& args)
 {
