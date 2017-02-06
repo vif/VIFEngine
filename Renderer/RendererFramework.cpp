@@ -26,34 +26,41 @@ private:
     void SetupVKSwapchain();
     void SetupVKImageViews();
     void SetupVKDepthBuffer();
+    void SetupVKUniformBuffer();
 
     WindowFramework& m_window_framework;
 
-    std::unique_ptr<Window> m_window;
+    std::unique_ptr<Window> m_window{};
 
-    vk::Instance m_vk_instance;
-    vk::PhysicalDevice m_vk_physical_device;
-    vk::Device m_vk_device;
-    vk::CommandPool m_vk_command_pool;
-    vk::CommandBuffer m_vk_command_buffer;
-    vk::Extent2D m_vk_extent;
-    vk::SurfaceKHR m_vk_surface;
-    vk::Format m_vk_format;
-    vk::SwapchainKHR m_vk_swapchain;
+    vk::Instance m_vk_instance{};
+    vk::PhysicalDevice m_vk_physical_device{};
+    vk::Device m_vk_device{};
+    vk::CommandPool m_vk_command_pool{};
+    vk::CommandBuffer m_vk_command_buffer{};
+    vk::Extent2D m_vk_extent{};
+    vk::SurfaceKHR m_vk_surface{};
+    vk::Format m_vk_format{};
+    vk::SwapchainKHR m_vk_swapchain{};
 
     struct ImageBuffer
     {
         //same index
-        std::vector<vk::Image> images;
-        std::vector<vk::ImageView> image_views;
-    } m_image_buffer;
+        std::vector<vk::Image> images{};
+        std::vector<vk::ImageView> image_views{};
+    } m_image_buffer{};
 
     struct DepthBuffer
     {
-        vk::Image image;
-        vk::ImageView image_view;
-        vk::DeviceMemory memory;
-    } m_depth_buffer;
+        vk::Image image{};
+        vk::ImageView image_view{};
+        vk::DeviceMemory memory{};
+    } m_depth_buffer{};
+
+    struct UniformBuffer
+    {
+        vk::Buffer buffer{};
+        vk::DeviceMemory memory{};
+    } m_uniform_buffer{};
 };
 
 template<typename T>
@@ -80,6 +87,7 @@ void RendererFrameworkImpl::Init()
     SetupVKSwapchain();
     SetupVKImageViews();
     SetupVKDepthBuffer();
+    SetupVKUniformBuffer();
 }
 
 void RendererFrameworkImpl::Shutdown()
@@ -323,10 +331,9 @@ void RendererFrameworkImpl::SetupVKDepthBuffer()
     m_depth_buffer.image = Get(m_vk_device.createImage(image_info));
 
     const auto& mem_reqs = m_vk_device.getImageMemoryRequirements(m_depth_buffer.image);
-
     const auto& mem_properties = m_vk_physical_device.getMemoryProperties();
 
-    const vk::MemoryPropertyFlagBits mem_flags = vk::MemoryPropertyFlagBits::eDeviceLocal;
+    const vk::MemoryPropertyFlags mem_flags = vk::MemoryPropertyFlagBits::eDeviceLocal;
     uint32_t memory_type_index;
     for(memory_type_index = 0; memory_type_index < mem_properties.memoryTypeCount; ++memory_type_index)
     {
@@ -339,7 +346,7 @@ void RendererFrameworkImpl::SetupVKDepthBuffer()
             break;
         }
     }
-
+    Assert(memory_type_index < mem_properties.memoryTypeCount);
 
     vk::MemoryAllocateInfo alloc_info(mem_reqs.size, memory_type_index);
     m_depth_buffer.memory = Get(m_vk_device.allocateMemory(alloc_info));
@@ -356,6 +363,48 @@ void RendererFrameworkImpl::SetupVKDepthBuffer()
     );
 
     m_depth_buffer.image_view = Get(m_vk_device.createImageView(image_view_info));
+}
+
+void RendererFrameworkImpl::SetupVKUniformBuffer()
+{
+    Assert(m_vk_physical_device);
+    Assert(m_vk_device);
+
+    vk::BufferCreateInfo buffer_info
+    (
+        {},
+        sizeof(glm::mat4), //TODO something more appropriate
+        vk::BufferUsageFlagBits::eUniformBuffer,
+        vk::SharingMode::eExclusive
+    );
+
+    m_uniform_buffer.buffer = Get(m_vk_device.createBuffer(buffer_info));
+
+    const auto& mem_reqs = m_vk_device.getBufferMemoryRequirements(m_uniform_buffer.buffer);
+    const auto& mem_properties = m_vk_physical_device.getMemoryProperties();
+
+    const vk::MemoryPropertyFlags mem_flags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+    uint32_t memory_type_index;
+    for(memory_type_index = 0; memory_type_index < mem_properties.memoryTypeCount; ++memory_type_index)
+    {
+        if 
+            (
+            ((mem_properties.memoryTypes[memory_type_index].propertyFlags & mem_flags) == mem_flags) //has type flag
+            && ((mem_reqs.memoryTypeBits >> memory_type_index) & 1) //mem_reqs accepts that index
+            )
+        {
+            break;
+        }
+    }
+    Assert(memory_type_index < mem_properties.memoryTypeCount);
+
+    vk::MemoryAllocateInfo alloc_info(mem_reqs.size, memory_type_index);
+    m_uniform_buffer.memory = Get(m_vk_device.allocateMemory(alloc_info));
+
+    void* mem = Get(m_vk_device.mapMemory(m_uniform_buffer.memory, 0, sizeof(glm::mat4), {}));
+    glm::mat4 identity;
+    memcpy(mem, &identity, sizeof(glm::mat4));
+    m_vk_device.unmapMemory(m_uniform_buffer.memory);
 }
 
 std::unique_ptr<RendererFramework> RendererFramework::Create(WindowFramework& window_framework)
