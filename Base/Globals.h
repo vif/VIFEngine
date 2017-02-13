@@ -20,7 +20,7 @@ BaseEXPORT std::wstring ToUTF16(const std::string& str);
 #ifdef _DEBUG
 #  define DebugAssert(expr) Assert(expr)
 #else
-#  define (void)0
+#  define DebugAssert(expr) (void)0
 #endif
 
 template <typename T, std::size_t N>
