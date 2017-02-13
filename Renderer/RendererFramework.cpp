@@ -27,6 +27,10 @@ private:
     void SetupVKImageViews();
     void SetupVKDepthBuffer();
     void SetupVKUniformBuffer();
+    void SetupVKDescriptors();
+    void SetupVKPipeline();
+    void SetupVKDescriptorPool();
+    void SetupDescriptorSets();
 
     WindowFramework& m_window_framework;
 
@@ -61,6 +65,11 @@ private:
         vk::Buffer buffer{};
         vk::DeviceMemory memory{};
     } m_uniform_buffer{};
+
+    vk::DescriptorSetLayout m_vk_descriptor_set_layout{};
+    vk::PipelineLayout m_vk_pipeline_layout;
+    vk::DescriptorPool m_vk_descriptor_pool;
+    vk::DescriptorSet m_vk_descriptor_set;
 };
 
 template<typename T>
@@ -88,6 +97,10 @@ void RendererFrameworkImpl::Init()
     SetupVKImageViews();
     SetupVKDepthBuffer();
     SetupVKUniformBuffer();
+    SetupVKDescriptors();
+    SetupVKPipeline();
+    SetupVKDescriptorPool();
+    SetupDescriptorSets();
 }
 
 void RendererFrameworkImpl::Shutdown()
@@ -388,10 +401,10 @@ void RendererFrameworkImpl::SetupVKUniformBuffer()
     for(memory_type_index = 0; memory_type_index < mem_properties.memoryTypeCount; ++memory_type_index)
     {
         if 
-            (
+        (
             ((mem_properties.memoryTypes[memory_type_index].propertyFlags & mem_flags) == mem_flags) //has type flag
             && ((mem_reqs.memoryTypeBits >> memory_type_index) & 1) //mem_reqs accepts that index
-            )
+        )
         {
             break;
         }
@@ -405,6 +418,99 @@ void RendererFrameworkImpl::SetupVKUniformBuffer()
     glm::mat4 identity;
     memcpy(mem, &identity, sizeof(glm::mat4));
     m_vk_device.unmapMemory(m_uniform_buffer.memory);
+}
+
+void RendererFrameworkImpl::SetupVKDescriptors()
+{
+    Assert(m_vk_device);
+
+    vk::DescriptorSetLayoutBinding layout_binding
+    (
+        0, 
+        vk::DescriptorType::eUniformBuffer, 
+        1, 
+        vk::ShaderStageFlagBits::eVertex
+    );
+
+    vk::DescriptorSetLayoutCreateInfo layout_create_info
+    (
+        {},
+        1,
+        &layout_binding
+    );
+
+    m_vk_descriptor_set_layout = Get(m_vk_device.createDescriptorSetLayout(layout_create_info));
+}
+
+void RendererFrameworkImpl::SetupVKPipeline()
+{
+    Assert(m_vk_device);
+    Assert(m_vk_descriptor_set_layout);
+
+    vk::PipelineLayoutCreateInfo layout_create_info
+    (
+        {},
+        1,
+        &m_vk_descriptor_set_layout,
+        0,
+        nullptr
+    );
+
+    m_vk_pipeline_layout = Get(m_vk_device.createPipelineLayout(layout_create_info));
+}
+
+void RendererFrameworkImpl::SetupVKDescriptorPool()
+{
+    Assert(m_vk_device);
+
+    vk::DescriptorPoolSize pool_size
+    (
+        vk::DescriptorType::eUniformBuffer,
+        1
+    );
+
+    vk::DescriptorPoolCreateInfo pool_create_info
+    (
+        {},
+        1,
+        1,
+        &pool_size
+    );
+
+    m_vk_descriptor_pool = Get(m_vk_device.createDescriptorPool(pool_create_info));
+}
+
+void RendererFrameworkImpl::SetupDescriptorSets()
+{
+    Assert(m_vk_device);
+    Assert(m_vk_descriptor_set_layout);
+    Assert(m_vk_descriptor_pool);
+    Assert(m_uniform_buffer.buffer);
+
+    vk::DescriptorSetAllocateInfo allocate_info
+    (
+        m_vk_descriptor_pool,
+        1,
+        &m_vk_descriptor_set_layout
+    );
+    auto sets = Get(m_vk_device.allocateDescriptorSets(allocate_info));
+    Assert(sets.size() == 1);
+    m_vk_descriptor_set = sets[0];
+
+    vk::DescriptorBufferInfo descriptor_buffer_info(m_uniform_buffer.buffer, 0, 0);
+
+    vk::WriteDescriptorSet write
+    (
+        m_vk_descriptor_set,
+        0,
+        0,
+        1,
+        vk::DescriptorType::eUniformBuffer,
+        nullptr,
+        &descriptor_buffer_info
+    );
+
+    m_vk_device.updateDescriptorSets(1, &write, 0, nullptr);
 }
 
 std::unique_ptr<RendererFramework> RendererFramework::Create(WindowFramework& window_framework)
