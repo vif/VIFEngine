@@ -31,6 +31,7 @@ private:
     void SetupVKPipeline();
     void SetupVKDescriptorPool();
     void SetupDescriptorSets();
+    void SetupRenderPass();
 
     WindowFramework& m_window_framework;
 
@@ -67,9 +68,10 @@ private:
     } m_uniform_buffer{};
 
     vk::DescriptorSetLayout m_vk_descriptor_set_layout{};
-    vk::PipelineLayout m_vk_pipeline_layout;
-    vk::DescriptorPool m_vk_descriptor_pool;
-    vk::DescriptorSet m_vk_descriptor_set;
+    vk::PipelineLayout m_vk_pipeline_layout{};
+    vk::DescriptorPool m_vk_descriptor_pool{};
+    vk::DescriptorSet m_vk_descriptor_set{};
+    vk::RenderPass m_vk_render_pass{};
 };
 
 template<typename T>
@@ -101,6 +103,7 @@ void RendererFrameworkImpl::Init()
     SetupVKPipeline();
     SetupVKDescriptorPool();
     SetupDescriptorSets();
+    SetupRenderPass();
 }
 
 void RendererFrameworkImpl::Shutdown()
@@ -114,7 +117,7 @@ void RendererFrameworkImpl::OnMainWindowClose()
 
 void RendererFrameworkImpl::SetupVKInstance()
 {
-    vk::ApplicationInfo app_info;
+    const vk::ApplicationInfo app_info;
 
     const char* instance_extensions[] =
     {
@@ -122,7 +125,7 @@ void RendererFrameworkImpl::SetupVKInstance()
         VK_KHR_WIN32_SURFACE_EXTENSION_NAME
     };
 
-    vk::InstanceCreateInfo inst_info({}, &app_info, 0, nullptr, static_cast<uint32_t>(countof(instance_extensions)), instance_extensions);
+    const vk::InstanceCreateInfo inst_info({}, &app_info, 0, nullptr, static_cast<uint32_t>(countof(instance_extensions)), instance_extensions);
     m_vk_instance = Get(vk::createInstance(inst_info));
 }
 
@@ -142,21 +145,21 @@ void RendererFrameworkImpl::SetupVKDevice()
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
-    vk::DeviceCreateInfo device_info({}, 0, nullptr, 0, 0, static_cast<uint32_t>(countof(device_extensions)), device_extensions);
+    const vk::DeviceCreateInfo device_info({}, 0, nullptr, 0, 0, static_cast<uint32_t>(countof(device_extensions)), device_extensions);
     m_vk_device = Get(m_vk_physical_device.createDevice(device_info));
 }
 
 void RendererFrameworkImpl::SetupVKCommandPool()
 {
     Assert(m_vk_device);
-    vk::CommandPoolCreateInfo command_pool_info;
+    const vk::CommandPoolCreateInfo command_pool_info;
     m_vk_command_pool = Get(m_vk_device.createCommandPool(command_pool_info));
 }
 
 void RendererFrameworkImpl::SetupVKCommandQueue()
 {
     Assert(m_vk_device);
-    vk::CommandBufferAllocateInfo command_buffer_info(m_vk_command_pool, vk::CommandBufferLevel::ePrimary, 1);
+    const vk::CommandBufferAllocateInfo command_buffer_info(m_vk_command_pool, vk::CommandBufferLevel::ePrimary, 1);
     const auto& allocated_command_buffers = Get(m_vk_device.allocateCommandBuffers(command_buffer_info));
     Assert(allocated_command_buffers.size() == 1);
     m_vk_command_buffer = allocated_command_buffers[0];
@@ -166,7 +169,7 @@ void RendererFrameworkImpl::SetupVKSurface()
 {
     Assert(m_window);
     Assert(m_vk_instance);
-    vk::Win32SurfaceCreateInfoKHR surface_create_info({}, m_window_framework.GetInstance(), m_window->GetHandle());
+    const vk::Win32SurfaceCreateInfoKHR surface_create_info({}, m_window_framework.GetInstance(), m_window->GetHandle());
     m_vk_surface = Get(m_vk_instance.createWin32SurfaceKHR(surface_create_info));
 }
 
@@ -325,7 +328,7 @@ void RendererFrameworkImpl::SetupVKDepthBuffer()
         std::abort(); //TODO add message
     }
 
-    vk::ImageCreateInfo image_info
+    const vk::ImageCreateInfo image_info
     (
         {}, 
         vk::ImageType::e2D,
@@ -361,11 +364,11 @@ void RendererFrameworkImpl::SetupVKDepthBuffer()
     }
     Assert(memory_type_index < mem_properties.memoryTypeCount);
 
-    vk::MemoryAllocateInfo alloc_info(mem_reqs.size, memory_type_index);
+    const vk::MemoryAllocateInfo alloc_info(mem_reqs.size, memory_type_index);
     m_depth_buffer.memory = Get(m_vk_device.allocateMemory(alloc_info));
     m_vk_device.bindImageMemory(m_depth_buffer.image, m_depth_buffer.memory, 0);
 
-    vk::ImageViewCreateInfo image_view_info
+    const vk::ImageViewCreateInfo image_view_info
     (
         {}, 
         m_depth_buffer.image, 
@@ -383,7 +386,7 @@ void RendererFrameworkImpl::SetupVKUniformBuffer()
     Assert(m_vk_physical_device);
     Assert(m_vk_device);
 
-    vk::BufferCreateInfo buffer_info
+    const vk::BufferCreateInfo buffer_info
     (
         {},
         sizeof(glm::mat4), //TODO something more appropriate
@@ -411,7 +414,7 @@ void RendererFrameworkImpl::SetupVKUniformBuffer()
     }
     Assert(memory_type_index < mem_properties.memoryTypeCount);
 
-    vk::MemoryAllocateInfo alloc_info(mem_reqs.size, memory_type_index);
+    const vk::MemoryAllocateInfo alloc_info(mem_reqs.size, memory_type_index);
     m_uniform_buffer.memory = Get(m_vk_device.allocateMemory(alloc_info));
 
     void* mem = Get(m_vk_device.mapMemory(m_uniform_buffer.memory, 0, sizeof(glm::mat4), {}));
@@ -424,7 +427,7 @@ void RendererFrameworkImpl::SetupVKDescriptors()
 {
     Assert(m_vk_device);
 
-    vk::DescriptorSetLayoutBinding layout_binding
+    const vk::DescriptorSetLayoutBinding layout_binding
     (
         0, 
         vk::DescriptorType::eUniformBuffer, 
@@ -432,7 +435,7 @@ void RendererFrameworkImpl::SetupVKDescriptors()
         vk::ShaderStageFlagBits::eVertex
     );
 
-    vk::DescriptorSetLayoutCreateInfo layout_create_info
+    const vk::DescriptorSetLayoutCreateInfo layout_create_info
     (
         {},
         1,
@@ -447,7 +450,7 @@ void RendererFrameworkImpl::SetupVKPipeline()
     Assert(m_vk_device);
     Assert(m_vk_descriptor_set_layout);
 
-    vk::PipelineLayoutCreateInfo layout_create_info
+    const vk::PipelineLayoutCreateInfo layout_create_info
     (
         {},
         1,
@@ -463,13 +466,13 @@ void RendererFrameworkImpl::SetupVKDescriptorPool()
 {
     Assert(m_vk_device);
 
-    vk::DescriptorPoolSize pool_size
+    const vk::DescriptorPoolSize pool_size
     (
         vk::DescriptorType::eUniformBuffer,
         1
     );
 
-    vk::DescriptorPoolCreateInfo pool_create_info
+    const vk::DescriptorPoolCreateInfo pool_create_info
     (
         {},
         1,
@@ -487,7 +490,7 @@ void RendererFrameworkImpl::SetupDescriptorSets()
     Assert(m_vk_descriptor_pool);
     Assert(m_uniform_buffer.buffer);
 
-    vk::DescriptorSetAllocateInfo allocate_info
+    const vk::DescriptorSetAllocateInfo allocate_info
     (
         m_vk_descriptor_pool,
         1,
@@ -497,9 +500,9 @@ void RendererFrameworkImpl::SetupDescriptorSets()
     Assert(sets.size() == 1);
     m_vk_descriptor_set = sets[0];
 
-    vk::DescriptorBufferInfo descriptor_buffer_info(m_uniform_buffer.buffer, 0, 0);
+    const vk::DescriptorBufferInfo descriptor_buffer_info(m_uniform_buffer.buffer, 0, 0);
 
-    vk::WriteDescriptorSet write
+    const vk::WriteDescriptorSet write
     (
         m_vk_descriptor_set,
         0,
@@ -511,6 +514,71 @@ void RendererFrameworkImpl::SetupDescriptorSets()
     );
 
     m_vk_device.updateDescriptorSets(1, &write, 0, nullptr);
+}
+
+void RendererFrameworkImpl::SetupRenderPass()
+{
+    Assert(m_vk_device);
+
+    const auto num_samples = vk::SampleCountFlagBits::e16;
+
+    const vk::AttachmentDescription attachments[2] =
+    {
+        vk::AttachmentDescription
+        (
+            {},
+            m_vk_format,
+            num_samples,
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eStore,
+            vk::AttachmentLoadOp::eDontCare,
+            vk::AttachmentStoreOp::eDontCare,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::ePresentSrcKHR
+        ),
+        vk::AttachmentDescription
+        (
+            {},
+            m_vk_format,
+            num_samples,
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eDontCare,
+            vk::AttachmentLoadOp::eDontCare,
+            vk::AttachmentStoreOp::eDontCare,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eDepthStencilAttachmentOptimal
+        )
+    };
+
+    const vk::AttachmentReference color_reference(0, vk::ImageLayout::eColorAttachmentOptimal);
+    const vk::AttachmentReference depth_reference(0, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+
+    const vk::SubpassDescription subpass_description
+    (
+        {},
+        vk::PipelineBindPoint::eGraphics,
+        0,
+        nullptr,
+        1,
+        &color_reference,
+        nullptr,
+        &depth_reference,
+        0,
+        nullptr
+    );
+    
+    const vk::RenderPassCreateInfo render_pass_create_info
+    (
+        {},
+        2,
+        attachments,
+        1,
+        &subpass_description,
+        0,
+        nullptr
+    );
+
+    m_vk_render_pass = Get(m_vk_device.createRenderPass(render_pass_create_info));
 }
 
 std::unique_ptr<RendererFramework> RendererFramework::Create(WindowFramework& window_framework)
