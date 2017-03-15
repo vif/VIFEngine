@@ -4,6 +4,9 @@
 #include <WindowFramework/WindowFramework.h>
 #include <WindowFramework/Window.h>
 
+#include <limits>
+#include <fstream>
+
 class RendererFrameworkImpl : public RendererFramework
 {
 public:
@@ -32,6 +35,7 @@ private:
     void SetupVKDescriptorPool();
     void SetupDescriptorSets();
     void SetupRenderPass();
+    void SetupShaders();
 
     WindowFramework& m_window_framework;
 
@@ -72,6 +76,8 @@ private:
     vk::DescriptorPool m_vk_descriptor_pool{};
     vk::DescriptorSet m_vk_descriptor_set{};
     vk::RenderPass m_vk_render_pass{};
+    vk::ShaderModule m_vk_vertex_shader_module{};
+    vk::ShaderModule m_vk_fragment_shader_module{};
 };
 
 template<typename T>
@@ -104,6 +110,7 @@ void RendererFrameworkImpl::Init()
     SetupVKDescriptorPool();
     SetupDescriptorSets();
     SetupRenderPass();
+    SetupShaders();
 }
 
 void RendererFrameworkImpl::Shutdown()
@@ -579,6 +586,52 @@ void RendererFrameworkImpl::SetupRenderPass()
     );
 
     m_vk_render_pass = Get(m_vk_device.createRenderPass(render_pass_create_info));
+}
+
+void RendererFrameworkImpl::SetupShaders()
+{
+    Assert(m_vk_device);
+
+    auto ReadByteCode = [](auto& filename)
+    {
+        std::vector<uint32_t> ret;
+        std::ifstream file(filename, std::ifstream::in | std::ifstream::binary);
+        Assert(file);
+        
+        file.seekg(0, std::ios::end);
+        std::streamsize size = file.tellg();
+
+        Assert
+        (
+            (size > 0)
+            && ((size % sizeof(uint32_t)) == 0)
+            && ((size / sizeof(uint32_t)) <= std::numeric_limits<uint32_t>::max())
+        );
+        ret.resize(static_cast<size_t>(size / sizeof(uint32_t)));
+
+        file.seekg(std::ios::beg);
+        file.read(reinterpret_cast<char*>(&ret[0]), size);
+
+        return ret;
+    };
+
+    std::vector<uint32_t> vertex_shader_bytecode = ReadByteCode("./Resources/Shaders/Simple.vert.spv");
+	const vk::ShaderModuleCreateInfo vertex_shader_module_create_info
+	(
+		{},
+        vertex_shader_bytecode.size(),
+        &vertex_shader_bytecode[0]
+	);
+    m_vk_vertex_shader_module = Get(m_vk_device.createShaderModule(vertex_shader_module_create_info));
+
+    std::vector<uint32_t> fragment_shader_bytecode = ReadByteCode("./Resources/Shaders/Simple.frag.spv");
+    const vk::ShaderModuleCreateInfo fragment_shader_module_create_info
+    (
+        {},
+        fragment_shader_bytecode.size(),
+        &fragment_shader_bytecode[0]
+    );
+    m_vk_fragment_shader_module = Get(m_vk_device.createShaderModule(fragment_shader_module_create_info));
 }
 
 std::unique_ptr<RendererFramework> RendererFramework::Create(WindowFramework& window_framework)

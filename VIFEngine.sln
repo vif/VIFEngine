@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26127.3
+VisualStudioVersion = 15.0.26228.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VIFEngine", "VIFEngine\VIFEngine.vcxproj", "{99F786EF-3555-46DE-B3E0-050788D729C4}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -24,6 +24,7 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Renderer", "Renderer\Renderer.vcxproj", "{099D1FA8-BB01-4924-AE0B-B5CB6E306D1A}"
 	ProjectSection(ProjectDependencies) = postProject
 		{5414B82E-B1E8-4164-923A-C50D04AC4DD5} = {5414B82E-B1E8-4164-923A-C50D04AC4DD5}
+		{09EE2C35-A443-4711-B9B1-46610A238874} = {09EE2C35-A443-4711-B9B1-46610A238874}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Tests", "Tests\Tests.vcxproj", "{A66E47A9-FDB7-4383-8136-9C3CFB193C36}"
@@ -32,6 +33,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Tests", "Tests\Tests.vcxpro
 		{5414B82E-B1E8-4164-923A-C50D04AC4DD5} = {5414B82E-B1E8-4164-923A-C50D04AC4DD5}
 		{099D1FA8-BB01-4924-AE0B-B5CB6E306D1A} = {099D1FA8-BB01-4924-AE0B-B5CB6E306D1A}
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Resources", "Resources\Resources.vcxproj", "{09EE2C35-A443-4711-B9B1-46610A238874}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -89,6 +92,14 @@ Global
 		{A66E47A9-FDB7-4383-8136-9C3CFB193C36}.Release|x64.Build.0 = Release|x64
 		{A66E47A9-FDB7-4383-8136-9C3CFB193C36}.Release|x86.ActiveCfg = Release|Win32
 		{A66E47A9-FDB7-4383-8136-9C3CFB193C36}.Release|x86.Build.0 = Release|Win32
+		{09EE2C35-A443-4711-B9B1-46610A238874}.Debug|x64.ActiveCfg = Debug|x64
+		{09EE2C35-A443-4711-B9B1-46610A238874}.Debug|x64.Build.0 = Debug|x64
+		{09EE2C35-A443-4711-B9B1-46610A238874}.Debug|x86.ActiveCfg = Debug|Win32
+		{09EE2C35-A443-4711-B9B1-46610A238874}.Debug|x86.Build.0 = Debug|Win32
+		{09EE2C35-A443-4711-B9B1-46610A238874}.Release|x64.ActiveCfg = Release|x64
+		{09EE2C35-A443-4711-B9B1-46610A238874}.Release|x64.Build.0 = Release|x64
+		{09EE2C35-A443-4711-B9B1-46610A238874}.Release|x86.ActiveCfg = Release|Win32
+		{09EE2C35-A443-4711-B9B1-46610A238874}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
